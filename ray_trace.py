@@ -6,7 +6,7 @@ from cassegrain_geo import CassegrainGeometry, Point, Hyperbolic, Parabolic
 def calculate_normal(point, mirror):
     if isinstance(mirror, Parabolic):
         R = mirror.radius_curv
-        return np.array([point.x / R, point.y / R, -1])
+        return np.array([point.x / R,-point.y / R, -1])
     elif isinstance(mirror, Hyperbolic):
         R = mirror.radius_curv
         K = mirror.K_val
@@ -179,6 +179,6 @@ if __name__ == "__main__":
     visualize_rays(cassegrain_geo, rays)
 
 
-    '''test_points = [Point(4, 0, 20), Point(-4, 0, 20), Point(-3, 0, 20), Point(3, 0, 20)]
+'''    test_points = [Point(4, 0, 20), Point(-4, 0, 20), Point(-3, 0, 20), Point(3, 0, 20)]
     rays = [trace_ray(cassegrain_geo, point) for point in test_points]
     visualize_rays(cassegrain_geo, rays)'''
