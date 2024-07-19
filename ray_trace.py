@@ -5,22 +5,22 @@ from cassegrain_geo import CassegrainGeometry, Point, Hyperbolic, Parabolic
 
 def calculate_normal(point, mirror):
     if isinstance(mirror, Parabolic):
-        return np.array([2 * point.x, 2 * point.y, -2 * mirror.radius_curv])
+        R = mirror.radius_curv
+        return np.array([point.x / R, point.y / R, -1])
     elif isinstance(mirror, Hyperbolic):
         R = mirror.radius_curv
-        return np.array([point.x / np.sqrt(R**2 + 3 * (point.x**2 + point.y**2)), 
-                         point.y / np.sqrt(R**2 + 3 * (point.x**2 + point.y**2)), 
-                         -1])
+        K = mirror.K_val
+        return np.array([
+            point.x / np.sqrt(R**2 - (K + 1) * (point.x**2 + point.y**2)), 
+            point.y / np.sqrt(R**2 - (K + 1) * (point.x**2 + point.y**2)), 
+            -1
+        ])
 
 def surface_primary(x, y, primary_radius_curv):
-    return (x**2 + y**2) / (4 * primary_radius_curv)
+    return (x**2 + y**2) / (2 * primary_radius_curv)
 
 def surface_secondary(x, y, secondary_z_position, secondary_radius_curv, secondary_K):
-    term = secondary_radius_curv**2 - (secondary_K + 1) * (x**2 + y**2)
-    if term < 0:
-        return secondary_z_position + (secondary_radius_curv + np.sqrt(-term)) / (secondary_K + 1)  # Handling negative term by adding the sqrt of positive value
-    
-    z = secondary_z_position + (secondary_radius_curv - np.sqrt(term)) / (secondary_K + 1)
+    z = secondary_z_position + (secondary_radius_curv - np.sqrt(secondary_radius_curv**2 - (secondary_K + 1) * (x**2 + y**2))) / (secondary_K + 1)
     return z
 
 # Function to get z-value on the secondary mirror
@@ -111,7 +111,7 @@ def visualize_rays(telescope, rays):
         ax.plot([point.x, target_primary.x], [point.y, target_primary.y], [point.z, target_primary.z], color='orange', label='Photon Ray')
         ax.plot([target_primary.x, target_secondary.x], [target_primary.y, target_secondary.y], [target_primary.z, target_secondary.z], color='steelblue', label='Primary Reflection')
 
-        # plotting normal vector at the secondary mirror intersection
+        # plotting normal vector at the mirror intersection
         ax.quiver(target_secondary.x, target_secondary.y, target_secondary.z, 
                   normal_secondary[0], normal_secondary[1], normal_secondary[2], 
                   length=1, color='red', normalize=True, arrow_length_ratio=0.1)
@@ -121,11 +121,11 @@ def visualize_rays(telescope, rays):
                   length=1, color='blue', normalize=True, arrow_length_ratio=0.1)
 
         # Plot the green line using the halved angle of reflection
-        green_line_length = 18.0  # Adjust this length as needed
+        green_line_length = 20.0  # Adjust this length as needed
         green_endpoint = Point(target_secondary.x + green_line_length * reflected_secondary[0],
                                target_secondary.y + green_line_length * reflected_secondary[1],
                                target_secondary.z + green_line_length * reflected_secondary[2])
-        ax.plot([target_secondary.x, green_endpoint.x], [target_secondary.y, green_endpoint.y], [target_secondary.z, green_endpoint.z], color='palevioletred', linewidth=1, label='Secondary Reflection')
+        ax.plot([target_secondary.x, green_endpoint.x], [target_secondary.y, green_endpoint.y], [target_secondary.z, green_endpoint.z], color='palevioletred', linewidth=0.6, label='Secondary Reflection')
 
     # Create a mask for the circular mirrors
     def circular_mask(X, Y, radius):
@@ -148,7 +148,7 @@ def visualize_rays(telescope, rays):
 
     # Plot focal points for reference
     ax.scatter(0, 0, 17.5, color='green', marker='o', label='Primary Focal Point', alpha=0.3)
-    ax.scatter(0, 0, -0.72, color='purple', marker='o', label='Back Focal Dist', alpha=0.3)  
+    ax.scatter(0, 0, -2.5, color='purple', marker='o', label='Back Focal Dist', alpha=0.3)  
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
@@ -172,8 +172,13 @@ if __name__ == "__main__":
     print("B:", cassegrain_geo.B)
     
     # Create a line of points across the diameter of the primary mirror spaced by 0.1
-    x_values = np.linspace(-5, 5, 1)
+    x_values = np.linspace(-5, 5, 11)
     test_points = [Point(x, 0, 20) for x in x_values]
 
     rays = [trace_ray(cassegrain_geo, point) for point in test_points]
     visualize_rays(cassegrain_geo, rays)
+
+
+    '''test_points = [Point(4, 0, 20), Point(-4, 0, 20), Point(-3, 0, 20), Point(3, 0, 20)]
+    rays = [trace_ray(cassegrain_geo, point) for point in test_points]
+    visualize_rays(cassegrain_geo, rays)'''

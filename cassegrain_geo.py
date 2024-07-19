@@ -42,8 +42,8 @@ class CassegrainGeometry:
         self.B = self.D + self.b
         self.M = (self.F - self.B) / self.D
 
-        self.primary_radius_curv = 2 * self.F / self.M
-        self.secondary_radius_curv = 2 * self.B / (self.M - 1)
+        self.primary_radius_curv = (2 * self.F / self.M)
+        self.secondary_radius_curv = (2 * self.B / (self.M - 1))
         self.primary_K = -1
         self.secondary_K = -1 - (4 * self.M) / (self.M - 1)**2
         self.primary_z_position = 0
