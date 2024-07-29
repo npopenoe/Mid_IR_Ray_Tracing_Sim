@@ -151,7 +151,6 @@ def visualize_rays(telescope, rays):
     ax.set_zlabel('Z')
     ax.view_init(elev=30, azim=60)
     ax.set_box_aspect([1, 1, 1])
-    plt.legend()
     plt.show()
 
 if __name__ == "__main__":
