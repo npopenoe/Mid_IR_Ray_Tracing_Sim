@@ -20,38 +20,38 @@ class Point:
                 f"wind={self.wind}, cn2={self.cn2})")
 
 def temperature_profile(z):
-    T_0 = 5  # Surface temperature in °C
+    T_0 = 15  # Surface temperature in °C
     L = 6.5  # Lapse rate in °C/km
-    return T_0 - L * z
+    return T_0 - L * z/2
 
 def humidity_profile(z):
-    H_0 = 17  # Surface relative humidity in %
+    H_0 = 50  # Surface relative humidity in % at 4200 m
     a = 0.2  # Decay constant in 1/km
-    return H_0 * np.exp(-a * z)
+    return H_0 * np.exp(-a * (z - 4.2))
 
 def emissivity_profile(z):
-    epsilon_0 = 0.7  # Surface emissivity
+    epsilon_0 = 0.7  # Surface emissivity at 4200 m
     B = 0.1  # Rate of decrease
-    return epsilon_0 * np.exp(-B * z)
+    return epsilon_0 * np.exp(-B * (z - 4.2))
 
 def pressure_profile(z):
-    P_0 = 1012.75  # Surface pressure in hPa
+    P_0 = 1012.75  # Surface pressure in hPa at 4200 m
     M = 0.029  # Molar mass of Earth's air in kg/mol
     g = 9.81  # Gravity in m/s²
     R = 8.314  # Universal gas constant in J/(mol·K)
     T_m = 278.15  # Mean temperature in K
-    return P_0 * np.exp(-M * g * z * 1000 / (R * T_m))
+    return P_0 * np.exp(-M * g * (z - 4.2) * 1000 / (R * T_m))
 
 def wind_profile(z):
-    W_0 = 16  # Base wind speed at ground level in m/s
-    a = 8  # Scale factor
-    b = 1.8  # Rate of increase with altitude
-    return W_0 + a * np.log1p(b * z)
+    W_0 = 16  # Base wind speed at 4200 m in m/s
+    a = 5  # Adjusted scale factor for more realistic increase
+    b = 1.5  # Adjusted rate of increase with altitude
+    return W_0 + a * np.log1p(b * (z - 4.2))
 
 def cn2_profile(z):
-    C_n2_0 = 1e-15  # Surface Cn^2 value in m^-2/3
+    C_n2_0 = 1e-15  # Surface Cn^2 value in m^-2/3 at 4200 m
     d = 0.2  # Decay constant in 1/km
-    return C_n2_0 * np.exp(-d * z)
+    return C_n2_0 * np.exp(-d * (z - 4.2))
 
 def generate_points(N=10000, decay_rate=2.0, max_altitude=10):
     points = []
