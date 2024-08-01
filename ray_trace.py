@@ -142,9 +142,9 @@ def visualize_rays(telescope, rays):
     ax.plot_wireframe(X_primary, Y_primary, Z_primary, color='green', alpha=0.3)
     plot_secondary_mirror(ax, telescope)
 
-    '''# Plot focal points for reference
+    # Plot focal points for reference
     ax.scatter(0, 0, 17.5, color='green', marker='o', label='Primary Focal Point', alpha=0.3)
-    ax.scatter(0, 0, -2.5, color='purple', marker='o', label='Back Focal Dist', alpha=0.3) ''' 
+    ax.scatter(0, 0, -2.5, color='purple', marker='o', label='Back Focal Dist', alpha=0.3) 
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')

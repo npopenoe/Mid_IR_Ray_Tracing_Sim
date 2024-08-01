@@ -40,7 +40,7 @@ def generate_random_point_on_primary(X_primary, Y_primary, Z_primary, mask_prima
     return Point(x, y, z)
 
 def calculate_solid_angle(x, y, z, mirror_radius):
-    # Define the integrand
+    # Define the integrand for off-axis points
     def integrand(r_prime, phi):
         r = np.sqrt((x - r_prime * np.cos(phi))**2 + (y - r_prime * np.sin(phi))**2 + z**2)
         cos_theta = z / r
@@ -62,33 +62,42 @@ def calculate_solid_angle(x, y, z, mirror_radius):
         for phi in phis:
             solid_angle += integrand(r_prime, phi) * dr_prime * dphi
     
-    print(solid_angle)
     return solid_angle
 
-def generate_random_direction_within_solid_angle(solid_angle):
-    # generates new one every run 
-    np.random.seed(int(time.time() * 1000) % 2**32)
+# Define the physical dimensions of the detector in meters
+detector_width = 0.027648
+detector_height = 0.027648
+z_detector = -2.5 
 
-    # calculate theta_max based on the solid angle
+def generate_random_direction_within_solid_angle(solid_angle):
+    # Calculate the maximum polar angle theta_max based on the solid angle
     theta_max = np.arccos(1 - solid_angle / (2 * np.pi))
 
-    theta = np.random.uniform(0, theta_max)
-    phi = np.random.uniform(0, 2 * np.pi)
-    
-    dx = np.sin(theta) * np.cos(phi)
-    dy = np.sin(theta) * np.sin(phi)
-    dz = -np.cos(theta)
-    
-    a = np.array([dx, dy, dz])
-    print(a)
-    return a
+    # Seed the random number generator
+    np.random.seed(int(time.time() * 1000) % 2**32)
 
-def trace_ray(telescope, point):
-    miss_counter = 0
     while True:
-        # Calculate the solid angle
-        solid_angle = calculate_solid_angle(point.x, point.y, point.z, 5.4745)
+        # Generate a random direction on the unit hemisphere
+        cos_theta = np.random.uniform(np.cos(theta_max), 1)
+        theta = np.arccos(cos_theta)
+        phi = np.random.uniform(0, 2 * np.pi)
 
+        dx = np.sin(theta) * np.cos(phi)
+        dy = np.sin(theta) * np.sin(phi)
+        dz = -np.cos(theta)
+
+        direction = np.array([dx, dy, dz])
+
+        return direction
+
+def trace_ray(telescope, point, max_iterations=10000):
+    miss_counter = 0
+    iteration_counter = 0
+
+    # Calculate the solid angle for the given point
+    solid_angle = calculate_solid_angle(point.x, point.y, point.z, 5.4745)
+
+    while iteration_counter < max_iterations:
         # Generate a random direction within the solid angle
         ray_direction = generate_random_direction_within_solid_angle(solid_angle)
 
@@ -123,11 +132,21 @@ def trace_ray(telescope, point):
             normal_secondary = calculate_normal(target_secondary, telescope.secondary)
             reflected_secondary = bounce_1(reflected_primary, normal_secondary)
 
-            # Print the miss counter
-            print(f'Number of misses before hitting the secondary mirror: {miss_counter}')
-            return point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary
-        else:
-            miss_counter += 1
+            # Check if the reflected ray intersects the detector plane within its bounds
+            t_detector = (z_detector - target_secondary.z) / reflected_secondary[2]
+            x_detector = target_secondary.x + t_detector * reflected_secondary[0]
+            y_detector = target_secondary.y + t_detector * reflected_secondary[1]
+
+            if -detector_width / 2 <= x_detector <= detector_width / 2 and -detector_height / 2 <= y_detector <= detector_height / 2:
+                print(f'Number of misses before hitting the secondary mirror: {miss_counter}')
+                print(f'Ray intersects the detector at (x, y, z): ({x_detector}, {y_detector}, {z_detector})')
+                return point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary, (x_detector, y_detector, z_detector)
+
+        miss_counter += 1
+        iteration_counter += 1
+
+    print(f'No valid ray found after {max_iterations} iterations')
+    return None
 
 def plot_secondary_mirror(ax, telescope):
     # defines the radius of the secondary mirror
@@ -162,7 +181,7 @@ def visualize_rays(telescope, rays):
         if ray_path is None:
             continue
 
-        point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary = ray_path
+        point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary, detector_intersection = ray_path
 
         # Plot the initial point
         ax.scatter(point.x, point.y, point.z, color='blue', marker='o', label='Atmospheric Particle')
@@ -196,13 +215,17 @@ def visualize_rays(telescope, rays):
 
     plot_secondary_mirror(ax, telescope)
 
-    ''' # Plot focal points for reference
-    ax.scatter(0, 0, 17.5, color='green', marker='o', label='Primary Focal Point', alpha=0.3)
-    ax.scatter(0, 0, -0.72, color='purple', marker='o', label='Back Focal Dist', alpha=0.3) ''' 
+    # Define the corners of the detector in the XY plane
+    x_corners = [-detector_width / 2, detector_width / 2, detector_width / 2, -detector_width / 2, -detector_width / 2]
+    y_corners = [-detector_height / 2, -detector_height / 2, detector_height / 2, detector_height / 2, -detector_height / 2]
+    z_corners = [z_detector] * 5
+
+    # Plot the detector plane
+    ax.plot(x_corners, y_corners, z_corners, color = 'red', label='NIRC2 Detector Plane')
 
     ax.set_xlim([-6, 6])
     ax.set_ylim([-6, 6])
-    ax.set_zlim([0, 20])
+    ax.set_zlim([0, 30])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -216,9 +239,11 @@ if __name__ == "__main__":
     b = 2.5
     cassegrain_geo = CassegrainGeometry(F, b, f1)
     
-    # Create a line of points across the diameter of the primary mirror spaced by 0.1
+    test_points = [Point(
+        np.random.uniform(-5, 5),  
+        np.random.uniform(-5, 5),  
+        np.random.uniform(16, 30) 
+    ) for _ in range(50)]
 
-    test_points = [Point(1, 2, 20)]
-
-    rays = [trace_ray(cassegrain_geo, point) for point in test_points]
+    rays = [trace_ray(cassegrain_geo, point) for point in test_points if trace_ray(cassegrain_geo, point) is not None]
     visualize_rays(cassegrain_geo, rays)
