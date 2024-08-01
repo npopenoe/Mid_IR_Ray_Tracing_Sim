@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from cassegrain_geo import CassegrainGeometry, Point, Hyperbolic, Parabolic
+import time
 
 def calculate_normal(point, mirror):
     if isinstance(mirror, Parabolic):
@@ -38,14 +39,39 @@ def generate_random_point_on_primary(X_primary, Y_primary, Z_primary, mask_prima
     z = Z_primary[valid_points][idx]
     return Point(x, y, z)
 
-def calculate_solid_angle(point, mirror_radius):
-    x, y, z = point
-    d = np.sqrt(x**2 + y**2 + z**2)
-    solid_angle = 2 * np.pi * (1 - z / np.sqrt(z**2 + mirror_radius**2))
+def calculate_solid_angle(x, y, z, mirror_radius):
+    # Define the integrand
+    def integrand(r_prime, phi):
+        r = np.sqrt((x - r_prime * np.cos(phi))**2 + (y - r_prime * np.sin(phi))**2 + z**2)
+        cos_theta = z / r
+        return (r_prime * cos_theta) / (r**2)
+    
+    # Integration limits
+    r_prime_max = mirror_radius
+    phi_max = 2 * np.pi
+    
+    # Discretize the integrand over a grid
+    r_primes = np.linspace(0, r_prime_max, 100)
+    phis = np.linspace(0, phi_max, 100)
+    dr_prime = r_prime_max / 100
+    dphi = phi_max / 100
+    
+    # Perform the double integral
+    solid_angle = 0
+    for r_prime in r_primes:
+        for phi in phis:
+            solid_angle += integrand(r_prime, phi) * dr_prime * dphi
+    
+    print(solid_angle)
     return solid_angle
 
 def generate_random_direction_within_solid_angle(solid_angle):
-    theta_max = solid_angle / (2 * np.pi)
+    # generates new one every run 
+    np.random.seed(int(time.time() * 1000) % 2**32)
+
+    # calculate theta_max based on the solid angle
+    theta_max = np.arccos(1 - solid_angle / (2 * np.pi))
+
     theta = np.random.uniform(0, theta_max)
     phi = np.random.uniform(0, 2 * np.pi)
     
@@ -53,46 +79,55 @@ def generate_random_direction_within_solid_angle(solid_angle):
     dy = np.sin(theta) * np.sin(phi)
     dz = -np.cos(theta)
     
-    return np.array([dx, dy, dz])
+    a = np.array([dx, dy, dz])
+    print(a)
+    return a
 
 def trace_ray(telescope, point):
-    # Calculate the solid angle
-    solid_angle = calculate_solid_angle((point.x, point.y, point.z), 5.4745)
-    print(solid_angle)
+    miss_counter = 0
+    while True:
+        # Calculate the solid angle
+        solid_angle = calculate_solid_angle(point.x, point.y, point.z, 5.4745)
 
-    # Generate a random direction within the solid angle
-    ray_direction = generate_random_direction_within_solid_angle(solid_angle)
-    
-    # Ensure the ray intersects with the primary mirror surface
-    z_primary = surface_primary(point.x, point.y, telescope.primary.radius_curv)
-    t_primary = (z_primary - point.z) / ray_direction[2]
-    target_primary = Point(
-        point.x + t_primary * ray_direction[0],
-        point.y + t_primary * ray_direction[1],
-        z_primary
-    )
-    
-    # Calculate the normal to the primary mirror at the target point
-    normal_primary = calculate_normal(target_primary, telescope.primary)
-    reflected_primary = bounce_1(ray_direction, normal_primary)
-    
-    # Calculate intersection with the secondary mirror
-    x_secondary = target_primary.x + reflected_primary[0] * (telescope.secondary_z_position - target_primary.z) / reflected_primary[2]
-    y_secondary = target_primary.y + reflected_primary[1] * (telescope.secondary_z_position - target_primary.z) / reflected_primary[2]
-    z_secondary = surface_secondary(x_secondary, y_secondary, telescope.secondary_z_position, telescope.secondary_radius_curv, telescope.secondary.K_val)
-    
-    t_secondary = (z_secondary - target_primary.z) / reflected_primary[2]
-    target_secondary = Point(
-        target_primary.x + t_secondary * reflected_primary[0],
-        target_primary.y + t_secondary * reflected_primary[1],
-        z_secondary
-    )
-    
-    # Calculate the normal to the secondary mirror at the intersection point
-    normal_secondary = calculate_normal(target_secondary, telescope.secondary)
-    reflected_secondary = bounce_1(reflected_primary, normal_secondary)
+        # Generate a random direction within the solid angle
+        ray_direction = generate_random_direction_within_solid_angle(solid_angle)
 
-    return point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary
+        # Ensure the ray intersects with the primary mirror surface
+        z_primary = surface_primary(point.x, point.y, telescope.primary.radius_curv)
+        t_primary = (z_primary - point.z) / ray_direction[2]
+        target_primary = Point(
+            point.x + t_primary * ray_direction[0],
+            point.y + t_primary * ray_direction[1],
+            z_primary
+        )
+
+        # Calculate the normal to the primary mirror at the target point
+        normal_primary = calculate_normal(target_primary, telescope.primary)
+        reflected_primary = bounce_1(ray_direction, normal_primary)
+
+        # Calculate intersection with the secondary mirror
+        x_secondary = target_primary.x + reflected_primary[0] * (telescope.secondary.z_position - target_primary.z) / reflected_primary[2]
+        y_secondary = target_primary.y + reflected_primary[1] * (telescope.secondary.z_position - target_primary.z) / reflected_primary[2]
+
+        # Check if the intersection point is within the secondary mirror's bounds
+        if x_secondary**2 + y_secondary**2 <= (0.7090145)**2:
+            z_secondary = surface_secondary(x_secondary, y_secondary, telescope.secondary.z_position, telescope.secondary.radius_curv, telescope.secondary.K_val)
+            t_secondary = (z_secondary - target_primary.z) / reflected_primary[2]
+            target_secondary = Point(
+                target_primary.x + t_secondary * reflected_primary[0],
+                target_primary.y + t_secondary * reflected_primary[1],
+                z_secondary
+            )
+
+            # Calculate the normal to the secondary mirror at the intersection point
+            normal_secondary = calculate_normal(target_secondary, telescope.secondary)
+            reflected_secondary = bounce_1(reflected_primary, normal_secondary)
+
+            # Print the miss counter
+            print(f'Number of misses before hitting the secondary mirror: {miss_counter}')
+            return point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary
+        else:
+            miss_counter += 1
 
 def plot_secondary_mirror(ax, telescope):
     # defines the radius of the secondary mirror
@@ -165,6 +200,9 @@ def visualize_rays(telescope, rays):
     ax.scatter(0, 0, 17.5, color='green', marker='o', label='Primary Focal Point', alpha=0.3)
     ax.scatter(0, 0, -0.72, color='purple', marker='o', label='Back Focal Dist', alpha=0.3) ''' 
 
+    ax.set_xlim([-6, 6])
+    ax.set_ylim([-6, 6])
+    ax.set_zlim([0, 20])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -180,7 +218,7 @@ if __name__ == "__main__":
     
     # Create a line of points across the diameter of the primary mirror spaced by 0.1
 
-    test_points = [Point(2, 2, 20)]
+    test_points = [Point(1, 2, 20)]
 
     rays = [trace_ray(cassegrain_geo, point) for point in test_points]
     visualize_rays(cassegrain_geo, rays)
