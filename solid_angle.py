@@ -90,7 +90,7 @@ def generate_random_direction_within_solid_angle(solid_angle):
 
         return direction
 
-def trace_ray(telescope, point, max_iterations=10000):
+def trace_ray(telescope, point, max_iterations=100000):
     miss_counter = 0
     iteration_counter = 0
 
@@ -100,6 +100,7 @@ def trace_ray(telescope, point, max_iterations=10000):
     while iteration_counter < max_iterations:
         # Generate a random direction within the solid angle
         ray_direction = generate_random_direction_within_solid_angle(solid_angle)
+        #ray_direction = np.array([0, 0, -1])
 
         # Ensure the ray intersects with the primary mirror surface
         z_primary = surface_primary(point.x, point.y, telescope.primary.radius_curv)
@@ -242,8 +243,8 @@ if __name__ == "__main__":
     test_points = [Point(
         np.random.uniform(-5, 5),  
         np.random.uniform(-5, 5),  
-        np.random.uniform(16, 30) 
-    ) for _ in range(50)]
+        np.random.uniform(16, 100) 
+    ) for _ in range(100)]
 
     rays = [trace_ray(cassegrain_geo, point) for point in test_points if trace_ray(cassegrain_geo, point) is not None]
     visualize_rays(cassegrain_geo, rays)
