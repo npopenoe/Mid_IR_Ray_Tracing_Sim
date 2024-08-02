@@ -89,18 +89,31 @@ def generate_random_direction_within_solid_angle(solid_angle):
         direction = np.array([dx, dy, dz])
 
         return direction
+    
+def generate_near_parallel_direction(one_radian_deviation=0.01745):
+    while True:
+        # Generate theta within the small deviation range
+        theta = np.random.uniform(0, 50*one_radian_deviation)
+        phi = np.random.uniform(0, 2 * np.pi)
+        
+        # Convert spherical coordinates to Cartesian coordinates
+        dx = np.sin(theta) * np.cos(phi)
+        dy = np.sin(theta) * np.sin(phi)
+        dz = -np.cos(theta)
 
-def trace_ray(telescope, point, max_iterations=100000):
+        direction = np.array([dx, dy, dz])
+
+        print(direction)
+        # Return the direction vector close to parallel
+        return direction
+
+def trace_ray(telescope, point, max_iterations=10000):
     miss_counter = 0
     iteration_counter = 0
 
-    # Calculate the solid angle for the given point
-    solid_angle = calculate_solid_angle(point.x, point.y, point.z, 5.4745)
-
     while iteration_counter < max_iterations:
-        # Generate a random direction within the solid angle
-        ray_direction = generate_random_direction_within_solid_angle(solid_angle)
-        #ray_direction = np.array([0, 0, -1])
+        # Generate a near-parallel direction within the small deviation range
+        ray_direction = generate_near_parallel_direction()
 
         # Ensure the ray intersects with the primary mirror surface
         z_primary = surface_primary(point.x, point.y, telescope.primary.radius_curv)
@@ -141,13 +154,13 @@ def trace_ray(telescope, point, max_iterations=100000):
             if -detector_width / 2 <= x_detector <= detector_width / 2 and -detector_height / 2 <= y_detector <= detector_height / 2:
                 print(f'Number of misses before hitting the secondary mirror: {miss_counter}')
                 print(f'Ray intersects the detector at (x, y, z): ({x_detector}, {y_detector}, {z_detector})')
-                return point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary, (x_detector, y_detector, z_detector)
+                return (point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary, (x_detector, y_detector, z_detector)), miss_counter + 1
 
         miss_counter += 1
         iteration_counter += 1
 
     print(f'No valid ray found after {max_iterations} iterations')
-    return None
+    return None, miss_counter
 
 def plot_secondary_mirror(ax, telescope):
     # defines the radius of the secondary mirror
@@ -188,15 +201,15 @@ def visualize_rays(telescope, rays):
         ax.scatter(point.x, point.y, point.z, color='blue', marker='o', label='Atmospheric Particle')
 
         # Plot the primary reflection
-        ax.plot([point.x, target_primary.x], [point.y, target_primary.y], [point.z, target_primary.z], color='orange', label='Photon Ray')
-        ax.plot([target_primary.x, target_secondary.x], [target_primary.y, target_secondary.y], [target_primary.z, target_secondary.z], color='steelblue', label='Primary Reflection')
+        ax.plot([point.x, target_primary.x], [point.y, target_primary.y], [point.z, target_primary.z], color='orange', linewidth = 0.7, label='Photon Ray')
+        ax.plot([target_primary.x, target_secondary.x], [target_primary.y, target_secondary.y], [target_primary.z, target_secondary.z], linewidth = 0.7, color='steelblue', label='Primary Reflection')
 
         # Plot the green line using the angle of reflection
         green_line_length = 20.0  # Adjust this length as needed
         green_endpoint = Point(target_secondary.x + green_line_length * reflected_secondary[0],
                                target_secondary.y + green_line_length * reflected_secondary[1],
                                target_secondary.z + green_line_length * reflected_secondary[2])
-        ax.plot([target_secondary.x, green_endpoint.x], [target_secondary.y, green_endpoint.y], [target_secondary.z, green_endpoint.z], color='palevioletred', label='Secondary Reflection')
+        ax.plot([target_secondary.x, green_endpoint.x], [target_secondary.y, green_endpoint.y], [target_secondary.z, green_endpoint.z], color='palevioletred', linewidth = 0.7, label='Secondary Reflection')
 
     # Create a mask for the circular mirrors
     def circular_mask(X, Y, radius):
@@ -226,7 +239,7 @@ def visualize_rays(telescope, rays):
 
     ax.set_xlim([-6, 6])
     ax.set_ylim([-6, 6])
-    ax.set_zlim([0, 30])
+    ax.set_zlim([-7, 30])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -243,8 +256,24 @@ if __name__ == "__main__":
     test_points = [Point(
         np.random.uniform(-5, 5),  
         np.random.uniform(-5, 5),  
-        np.random.uniform(16, 100) 
-    ) for _ in range(100)]
+        np.random.uniform(16, 30) 
+    ) for _ in range(50)]
 
-    rays = [trace_ray(cassegrain_geo, point) for point in test_points if trace_ray(cassegrain_geo, point) is not None]
+    total_miss_counter = 0
+    rays = []
+    for point in test_points:
+        result, miss_counter = trace_ray(cassegrain_geo, point)
+        total_miss_counter += miss_counter
+        if result is not None:
+            rays.append(result)
+
     visualize_rays(cassegrain_geo, rays)
+    
+    # Print statistics
+    num_rays_passed = len(rays)
+    num_rays_emitted = total_miss_counter
+    ratio_passed_to_emitted = num_rays_passed / num_rays_emitted if num_rays_emitted > 0 else 0
+
+    print(f'Number of rays that passed through detector: {num_rays_passed}')
+    print(f'Number of rays emitted: {num_rays_emitted}')
+    print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')
