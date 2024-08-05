@@ -93,7 +93,7 @@ def generate_random_direction_within_solid_angle(solid_angle):
 def generate_near_parallel_direction(one_radian_deviation=0.01745):
     while True:
         # Generate theta within the small deviation range
-        theta = np.random.uniform(0, 50*one_radian_deviation)
+        theta = np.random.uniform(0, one_radian_deviation)
         phi = np.random.uniform(0, 2 * np.pi)
         
         # Convert spherical coordinates to Cartesian coordinates
@@ -103,7 +103,6 @@ def generate_near_parallel_direction(one_radian_deviation=0.01745):
 
         direction = np.array([dx, dy, dz])
 
-        print(direction)
         # Return the direction vector close to parallel
         return direction
 
