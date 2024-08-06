@@ -4,6 +4,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from cassegrain_geo import CassegrainGeometry, Point, Hyperbolic, Parabolic
 from generate_points import generate_points, AtmosphericModel, layers, number_of_water_molecules
 import time
+from tqdm import tqdm
 
 def calculate_normal(point, mirror):
     if isinstance(mirror, Parabolic):
@@ -94,7 +95,7 @@ def generate_random_direction_within_solid_angle(solid_angle):
 def generate_near_parallel_direction(one_radian_deviation=0.01745):
     while True:
         # Generate theta within the small deviation range
-        theta = np.random.uniform(0, 50*one_radian_deviation)
+        theta = np.random.uniform(0, one_radian_deviation)
         phi = np.random.uniform(0, 2 * np.pi)
         
         # Convert spherical coordinates to Cartesian coordinates
@@ -107,7 +108,7 @@ def generate_near_parallel_direction(one_radian_deviation=0.01745):
         # Return the direction vector close to parallel
         return direction
 
-def trace_ray(telescope, point, max_iterations=10000):
+def trace_ray(telescope, point, max_iterations=10):
     miss_counter = 0
     iteration_counter = 0
 
@@ -152,14 +153,14 @@ def trace_ray(telescope, point, max_iterations=10000):
             y_detector = target_secondary.y + t_detector * reflected_secondary[1]
 
             if -detector_width / 2 <= x_detector <= detector_width / 2 and -detector_height / 2 <= y_detector <= detector_height / 2:
-                print(f'Number of misses before hitting the secondary mirror: {miss_counter}')
-                print(f'Ray intersects the detector at (x, y, z): ({x_detector}, {y_detector}, {z_detector})')
+                '''print(f'Number of misses before hitting the secondary mirror: {miss_counter}')
+                print(f'Ray intersects the detector at (x, y, z): ({x_detector}, {y_detector}, {z_detector})')'''
                 return (point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary, (x_detector, y_detector, z_detector)), miss_counter + 1
 
         miss_counter += 1
         iteration_counter += 1
 
-    print(f'No valid ray found after {max_iterations} iterations')
+    '''print(f'No valid ray found after {max_iterations} iterations')'''
     return None, miss_counter
 
 def plot_secondary_mirror(ax, telescope):
@@ -198,18 +199,18 @@ def visualize_rays(telescope, rays):
         point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary, detector_intersection = ray_path
 
         # Plot the initial point
-        ax.scatter(point.x, point.y, point.z, color='blue', marker='o', label='Atmospheric Particle')
+        ax.scatter(point.x, point.y, point.z, color='blue', marker='o', s = 2, label='Atmospheric Particle')
 
         # Plot the primary reflection
-        ax.plot([point.x, target_primary.x], [point.y, target_primary.y], [point.z, target_primary.z], color='orange', linewidth = 0.7, label='Photon Ray')
-        ax.plot([target_primary.x, target_secondary.x], [target_primary.y, target_secondary.y], [target_primary.z, target_secondary.z], linewidth = 0.7, color='steelblue', label='Primary Reflection')
+        ax.plot([point.x, target_primary.x], [point.y, target_primary.y], [point.z, target_primary.z], color='orange', linewidth = 0.5, label='Photon Ray')
+        ax.plot([target_primary.x, target_secondary.x], [target_primary.y, target_secondary.y], [target_primary.z, target_secondary.z], linewidth = 0.5, color='steelblue', label='Primary Reflection')
 
         # Plot the green line using the angle of reflection
         green_line_length = 20.0  # Adjust this length as needed
         green_endpoint = Point(target_secondary.x + green_line_length * reflected_secondary[0],
                                target_secondary.y + green_line_length * reflected_secondary[1],
                                target_secondary.z + green_line_length * reflected_secondary[2])
-        ax.plot([target_secondary.x, green_endpoint.x], [target_secondary.y, green_endpoint.y], [target_secondary.z, green_endpoint.z], color='palevioletred', linewidth = 0.7, label='Secondary Reflection')
+        ax.plot([target_secondary.x, green_endpoint.x], [target_secondary.y, green_endpoint.y], [target_secondary.z, green_endpoint.z], color='palevioletred', linewidth = 0.5, label='Secondary Reflection')
 
     # Create a mask for the circular mirrors
     def circular_mask(X, Y, radius):
@@ -248,19 +249,33 @@ def visualize_rays(telescope, rays):
     plt.show()
 
 def plot_intersection_points(intersections):
-    # Extract the x, y coordinates of intersections
+    # x, y coordinates of intersections
     x_coords = [point[0] for point in intersections]
     y_coords = [point[1] for point in intersections]
-    
+
+    # Initialize a 1024x1024 pixel array
+    image_array = np.zeros((1024, 1024))
+
+    # Calculate the pixel size
+    pixel_size_x = detector_width / 1024
+    pixel_size_y = detector_height / 1024
+
+    for x, y in zip(x_coords, y_coords):
+        # Calculate the pixel indices, shifted to 0 to 1024 range
+        i = int((x + detector_width / 2) / pixel_size_x)
+        j = int((y + detector_height / 2) / pixel_size_y)
+
+        if 0 <= i < 1024 and 0 <= j < 1024:
+            image_array[i, j] += 1
+
+    # Plot the image with pixel coordinates
     plt.figure(figsize=(8, 8))
-    plt.scatter(x_coords, y_coords, color='violet', marker='o', s=10)
-    plt.xlim([-detector_width / 2, detector_width / 2])
-    plt.ylim([-detector_height / 2, detector_height / 2])
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Intersection Points on Detector')
-    plt.grid(True)
-    plt.gca().set_aspect('equal', adjustable='box')
+    plt.imshow(image_array, cmap = 'hot', interpolation='nearest', extent=[0, 1024, 0, 1024])
+    plt.colorbar(label='Counts')
+    plt.xlabel('X (pixels)')
+    plt.ylabel('Y (pixels)')
+    plt.title('Detector Image')
+    plt.grid(False)
     plt.show()
 
 if __name__ == "__main__":
@@ -278,7 +293,7 @@ if __name__ == "__main__":
     total_miss_counter = 0
     rays = []
     intersections = []
-    for point in test_points:
+    for point in tqdm(test_points):
         result, miss_counter = trace_ray(cassegrain_geo, point)
         total_miss_counter += miss_counter
         if result is not None:
@@ -292,9 +307,9 @@ if __name__ == "__main__":
     num_rays_emitted = total_miss_counter
     ratio_passed_to_emitted = num_rays_passed / num_rays_emitted if num_rays_emitted > 0 else 0
 
-    print(f'Number of rays that passed through detector: {num_rays_passed}')
+    '''print(f'Number of rays that passed through detector: {num_rays_passed}')
     print(f'Number of rays emitted: {num_rays_emitted}')
-    print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')
+    print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')'''
 
     # Plot the intersection points
     plot_intersection_points(intersections)
