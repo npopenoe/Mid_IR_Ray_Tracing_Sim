@@ -246,6 +246,22 @@ def visualize_rays(telescope, rays):
     ax.set_box_aspect([1, 1, 1])
     plt.show()
 
+def plot_intersection_points(intersections):
+    # Extract the x, y coordinates of intersections
+    x_coords = [point[0] for point in intersections]
+    y_coords = [point[1] for point in intersections]
+    
+    plt.figure(figsize=(8, 8))
+    plt.scatter(x_coords, y_coords, color='violet', marker='o', s=10)
+    plt.xlim([-detector_width / 2, detector_width / 2])
+    plt.ylim([-detector_height / 2, detector_height / 2])
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Intersection Points on Detector')
+    plt.grid(True)
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.show()
+
 if __name__ == "__main__":
     F = 149.583
     f1 = 17.489
@@ -256,15 +272,17 @@ if __name__ == "__main__":
         np.random.uniform(-5, 5),  
         np.random.uniform(-5, 5),  
         np.random.uniform(16, 30) 
-    ) for _ in range(50)]
+    ) for _ in range(100)]
 
     total_miss_counter = 0
     rays = []
+    intersections = []
     for point in test_points:
         result, miss_counter = trace_ray(cassegrain_geo, point)
         total_miss_counter += miss_counter
         if result is not None:
             rays.append(result)
+            intersections.append(result[6])  # Append the intersection point
 
     visualize_rays(cassegrain_geo, rays)
     
@@ -276,3 +294,6 @@ if __name__ == "__main__":
     print(f'Number of rays that passed through detector: {num_rays_passed}')
     print(f'Number of rays emitted: {num_rays_emitted}')
     print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')
+
+    # Plot the intersection points
+    plot_intersection_points(intersections)
