@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from atmosphere_model import AtmosphericModel, layers, number_of_water_molecules
 
 class Point:
     def __init__(self, x, y, z, temperature, humidity, emissivity, pressure, wind, cn2):
@@ -19,60 +20,29 @@ class Point:
                 f"emissivity={self.emissivity}, pressure={self.pressure}, "
                 f"wind={self.wind}, cn2={self.cn2})")
 
-def temperature_profile(z):
-    T_0 = 15  # Surface temperature in °C
-    L = 6.5  # Lapse rate in °C/km
-    return T_0 - L * z/2
-
-def humidity_profile(z):
-    H_0 = 50  # Surface relative humidity in % at 4200 m
-    a = 0.2  # Decay constant in 1/km
-    return H_0 * np.exp(-a * (z - 4.2))
-
-def emissivity_profile(z):
-    epsilon_0 = 0.7  # Surface emissivity at 4200 m
-    B = 0.1  # Rate of decrease
-    return epsilon_0 * np.exp(-B * (z - 4.2))
-
-def pressure_profile(z):
-    P_0 = 1012.75  # Surface pressure in hPa at 4200 m
-    M = 0.029  # Molar mass of Earth's air in kg/mol
-    g = 9.81  # Gravity in m/s²
-    R = 8.314  # Universal gas constant in J/(mol·K)
-    T_m = 278.15  # Mean temperature in K
-    return P_0 * np.exp(-M * g * (z - 4.2) * 1000 / (R * T_m))
-
-def wind_profile(z):
-    W_0 = 16  # Base wind speed at 4200 m in m/s
-    a = 5  # Adjusted scale factor for more realistic increase
-    b = 1.5  # Adjusted rate of increase with altitude
-    return W_0 + a * np.log1p(b * (z - 4.2))
-
-def cn2_profile(z):
-    C_n2_0 = 1e-15  # Surface Cn^2 value in m^-2/3 at 4200 m
-    d = 0.2  # Decay constant in 1/km
-    return C_n2_0 * np.exp(-d * (z - 4.2))
-
-def generate_points(N=10000, decay_rate=2.0, max_altitude=10):
+def generate_points(atm_model, layers, num_molecules_per_layer, primary_mirror_radius=5.4745, scaling_factor=5e39):
     points = []
-    for _ in range(N):
-        r = np.sqrt(np.random.uniform(0, 1))
-        theta = np.random.uniform(0, 2 * np.pi)
-        x = r * np.cos(theta)
-        y = r * np.sin(theta)
-        z = np.random.uniform(0, max_altitude)
+    base_height = 17  # Start generating points 17 meters above the base
 
-        z_weighted = np.random.exponential(scale=decay_rate)
-        z_weighted = np.clip(z_weighted, 0, 10)
+    for i in range(len(layers) - 1):
+        num_points = int(num_molecules_per_layer[i] / scaling_factor)
+        print(f"Layer {i + 1}: Generating {num_points} points")
+        for _ in range(num_points):
+            r = primary_mirror_radius * np.sqrt(np.random.uniform(0, 1))
+            theta = np.random.uniform(0, 2 * np.pi)
+            x = r * np.cos(theta)
+            y = r * np.sin(theta)
+            z = np.random.uniform(base_height, layers[i + 1])  # Ensure z starts from base_height
 
-        temperature = temperature_profile(z_weighted)
-        humidity = humidity_profile(z_weighted)
-        emissivity = emissivity_profile(z_weighted)
-        pressure = pressure_profile(z_weighted)
-        wind = wind_profile(z_weighted)
-        cn2 = cn2_profile(z_weighted)
+            temperature = atm_model.temperature_profile(z)
+            humidity = atm_model.humidity_profile(z)
+            emissivity = atm_model.emissivity_profile(z)
+            pressure = atm_model.pressure_profile(z)
+            wind = atm_model.wind_profile(z)
+            cn2 = atm_model.cn2_profile(z)
 
-        points.append(Point(x, y, z_weighted, temperature, humidity, emissivity, pressure, wind, cn2))
+            points.append(Point(x, y, z, temperature, humidity, emissivity, pressure, wind, cn2))
+
     return points
 
 def plot_points(points):
@@ -86,6 +56,9 @@ def plot_points(points):
     plt.show()
 
 if __name__ == "__main__":
-    points = generate_points()
-    plot_points(points)
-
+    atm_model = AtmosphericModel()
+    points = generate_points(atm_model, layers, number_of_water_molecules)
+    if points:
+        plot_points(points)
+    else:
+        print("No points generated.")
