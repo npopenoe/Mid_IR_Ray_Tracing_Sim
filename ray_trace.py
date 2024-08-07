@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from cassegrain_geo import CassegrainGeometry, Point, Hyperbolic, Parabolic
-from generate_points import generate_points, AtmosphericModel, layers, number_of_water_molecules
+from generate_points import generate_points, AtmosphericModel, layers, number_of_water_molecules, AtmosphericPoint
 import time
 from tqdm import tqdm
 
@@ -108,15 +108,13 @@ def generate_near_parallel_direction(one_radian_deviation=0.01745):
         # Return the direction vector close to parallel
         return direction
 
-def trace_ray(telescope, point, max_iterations=10):
+def trace_ray(telescope, point, max_iterations=10000):
     miss_counter = 0
     iteration_counter = 0
 
     while iteration_counter < max_iterations:
-        # Generate a near-parallel direction within the small deviation range
         ray_direction = generate_near_parallel_direction()
 
-        # Ensure the ray intersects with the primary mirror surface
         z_primary = surface_primary(point.x, point.y, telescope.primary.radius_curv)
         t_primary = (z_primary - point.z) / ray_direction[2]
         target_primary = Point(
@@ -125,15 +123,12 @@ def trace_ray(telescope, point, max_iterations=10):
             z_primary
         )
 
-        # Calculate the normal to the primary mirror at the target point
         normal_primary = calculate_normal(target_primary, telescope.primary)
         reflected_primary = bounce_1(ray_direction, normal_primary)
 
-        # Calculate intersection with the secondary mirror
         x_secondary = target_primary.x + reflected_primary[0] * (telescope.secondary.z_position - target_primary.z) / reflected_primary[2]
         y_secondary = target_primary.y + reflected_primary[1] * (telescope.secondary.z_position - target_primary.z) / reflected_primary[2]
 
-        # Check if the intersection point is within the secondary mirror's bounds
         if x_secondary**2 + y_secondary**2 <= (0.7090145)**2:
             z_secondary = surface_secondary(x_secondary, y_secondary, telescope.secondary.z_position, telescope.secondary.radius_curv, telescope.secondary.K_val)
             t_secondary = (z_secondary - target_primary.z) / reflected_primary[2]
@@ -143,25 +138,46 @@ def trace_ray(telescope, point, max_iterations=10):
                 z_secondary
             )
 
-            # Calculate the normal to the secondary mirror at the intersection point
             normal_secondary = calculate_normal(target_secondary, telescope.secondary)
             reflected_secondary = bounce_1(reflected_primary, normal_secondary)
 
-            # Check if the reflected ray intersects the detector plane within its bounds
             t_detector = (z_detector - target_secondary.z) / reflected_secondary[2]
             x_detector = target_secondary.x + t_detector * reflected_secondary[0]
             y_detector = target_secondary.y + t_detector * reflected_secondary[1]
 
             if -detector_width / 2 <= x_detector <= detector_width / 2 and -detector_height / 2 <= y_detector <= detector_height / 2:
-                '''print(f'Number of misses before hitting the secondary mirror: {miss_counter}')
-                print(f'Ray intersects the detector at (x, y, z): ({x_detector}, {y_detector}, {z_detector})')'''
                 return (point, target_primary, target_secondary, reflected_secondary, normal_primary, normal_secondary, (x_detector, y_detector, z_detector)), miss_counter + 1
 
         miss_counter += 1
         iteration_counter += 1
 
-    '''print(f'No valid ray found after {max_iterations} iterations')'''
     return None, miss_counter
+
+def update_points_with_wind(points, time_step):
+    for point in points:
+        point.x += point.wind * time_step
+
+def simulate_wind_effect(cassegrain_geo, test_points, time_step=0.01, max_time=1.0):
+    total_miss_counter = 0
+    rays = []
+    intersections = []
+    
+    time = 0.0
+    while time < max_time:
+        update_points_with_wind(test_points, time_step)
+        for point in test_points:
+            if abs(point.x) > 5.4745 or abs(point.y) > 5.4745:
+                continue
+
+            result, miss_counter = trace_ray(cassegrain_geo, point)
+            total_miss_counter += miss_counter
+            if result is not None:
+                rays.append(result)
+                intersections.append(result[6])  # Append the intersection point
+
+        time += time_step
+
+    return rays, intersections, total_miss_counter
 
 def plot_secondary_mirror(ax, telescope):
     # defines the radius of the secondary mirror
@@ -248,29 +264,25 @@ def visualize_rays(telescope, rays):
     ax.set_box_aspect([1, 1, 1])
     plt.show()
 
+# Plot intersection points with pixel coordinates
 def plot_intersection_points(intersections):
-    # x, y coordinates of intersections
     x_coords = [point[0] for point in intersections]
     y_coords = [point[1] for point in intersections]
 
-    # Initialize a 1024x1024 pixel array
     image_array = np.zeros((1024, 1024))
 
-    # Calculate the pixel size
     pixel_size_x = detector_width / 1024
     pixel_size_y = detector_height / 1024
 
     for x, y in zip(x_coords, y_coords):
-        # Calculate the pixel indices, shifted to 0 to 1024 range
         i = int((x + detector_width / 2) / pixel_size_x)
         j = int((y + detector_height / 2) / pixel_size_y)
 
         if 0 <= i < 1024 and 0 <= j < 1024:
             image_array[i, j] += 1
 
-    # Plot the image with pixel coordinates
     plt.figure(figsize=(8, 8))
-    plt.imshow(image_array, cmap = 'hot', interpolation='nearest', extent=[0, 1024, 0, 1024])
+    plt.imshow(image_array, cmap='hot', interpolation='nearest', extent=[0, 1024, 0, 1024])
     plt.colorbar(label='Counts')
     plt.xlabel('X (pixels)')
     plt.ylabel('Y (pixels)')
@@ -288,9 +300,10 @@ if __name__ == "__main__":
     atmospheric_points = generate_points(atm_model, layers, number_of_water_molecules)
 
     # Use the generated atmospheric points for the test
-    test_points = [Point(p.x, p.y, p.z) for p in atmospheric_points]
+    test_points = [AtmosphericPoint(p.x, p.y, p.z, p.temperature, p.humidity, p.emissivity, p.pressure, p.wind, p.cn2) for p in atmospheric_points]
+    rays, intersections, total_miss_counter = simulate_wind_effect(cassegrain_geo, test_points)
 
-    total_miss_counter = 0
+    '''total_miss_counter = 0
     rays = []
     intersections = []
     for point in tqdm(test_points):
@@ -298,7 +311,7 @@ if __name__ == "__main__":
         total_miss_counter += miss_counter
         if result is not None:
             rays.append(result)
-            intersections.append(result[6])  # Append the intersection point
+            intersections.append(result[6])  # Append the intersection point'''
 
     visualize_rays(cassegrain_geo, rays)
     

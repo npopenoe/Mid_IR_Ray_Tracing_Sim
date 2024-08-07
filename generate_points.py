@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from atmosphere_model import AtmosphericModel, layers, number_of_water_molecules
 
-class Point:
+class AtmosphericPoint:
     def __init__(self, x, y, z, temperature, humidity, emissivity, pressure, wind, cn2):
         self.x = x
         self.y = y
@@ -15,14 +15,14 @@ class Point:
         self.cn2 = cn2
 
     def __repr__(self):
-        return (f"Point(x={self.x}, y={self.y}, z={self.z}, "
+        return (f"AtmosphericPoint(x={self.x}, y={self.y}, z={self.z}, "
                 f"temperature={self.temperature}, humidity={self.humidity}, "
                 f"emissivity={self.emissivity}, pressure={self.pressure}, "
                 f"wind={self.wind}, cn2={self.cn2})")
 
-def generate_points(atm_model, layers, num_molecules_per_layer, primary_mirror_radius=5.4745, scaling_factor=5e39):
+def generate_points(atm_model, layers, num_molecules_per_layer, primary_mirror_radius=5.4745, scaling_factor=1e42):
     points = []
-    base_height = 17  # Start generating points 17 meters above the base
+    base_height = 17  # Start generating points 17 meters above the base which is above secondary mirror
 
     for i in range(len(layers) - 1):
         num_points = int(num_molecules_per_layer[i] / scaling_factor)
@@ -41,8 +41,7 @@ def generate_points(atm_model, layers, num_molecules_per_layer, primary_mirror_r
             wind = atm_model.wind_profile(z)
             cn2 = atm_model.cn2_profile(z)
 
-            points.append(Point(x, y, z, temperature, humidity, emissivity, pressure, wind, cn2))
-
+            points.append(AtmosphericPoint(x, y, z, temperature, humidity, emissivity, pressure, wind, cn2))
     return points
 
 def plot_points(points):
