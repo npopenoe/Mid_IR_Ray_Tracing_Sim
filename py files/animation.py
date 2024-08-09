@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 detector_width = 0.027648
 detector_height = 0.027648
-z_position = 0
+z_position = -2.5
 
 def calculate_normal(point, mirror):
     if isinstance(mirror, Parabolic):
@@ -38,21 +38,20 @@ def bounce_1(ray_direction, normal):
     normal = normal / np.linalg.norm(normal)
     return ray_direction - 2 * np.dot(ray_direction, normal) * normal
 
-def generate_near_parallel_direction(one_radian_deviation=0.01745):
-    while True:
-        # Generate theta within the small deviation range
-        theta = np.random.uniform(0, one_radian_deviation)
-        phi = np.random.uniform(0, 2 * np.pi)
-        
-        # Convert spherical coordinates to Cartesian coordinates
-        dx = np.sin(theta) * np.cos(phi)
-        dy = np.sin(theta) * np.sin(phi)
-        dz = -np.cos(theta)
+def generate_near_parallel_direction(one_radian_deviation=0.005):
+    # Generate theta within a small deviation range
+    theta = np.random.uniform(0, one_radian_deviation)
+    phi = np.random.uniform(0, 2 * np.pi)
+    
+    # Convert spherical coordinates to Cartesian coordinates
+    dx = np.sin(theta) * np.cos(phi)
+    dy = np.sin(theta) * np.sin(phi)
+    dz = -np.cos(theta)
 
-        direction = np.array([dx, dy, dz])
+    direction = np.array([dx, dy, dz])
 
-        # Return the direction vector close to parallel
-        return direction
+    # Return the direction vector close to parallel
+    return direction
 
 def get_layer_wind_speed(z, wind_profile, layers):
     for i in range(len(layers) - 1):
@@ -62,8 +61,18 @@ def get_layer_wind_speed(z, wind_profile, layers):
 
 def update_points_with_wind(points, time_step, wind_profile, layers, primary_mirror_radius=5.35):
     for point in points:
+        # Get the wind speed corresponding to the current altitude of the point
         wind_speed = get_layer_wind_speed(point.z, wind_profile, layers)
-        point.x += wind_speed * time_step
+
+        # Calculate the distance the particle should move in this time step
+        distance_moved = wind_speed * time_step
+
+        # Update the x position of the particle based on the wind speed and time step
+        point.x += distance_moved
+
+        # Optional: ensure that particles wrap around if they move beyond the primary mirror's radius
+        if np.sqrt(point.x**2 + point.y**2) > primary_mirror_radius:
+            point.active = False
 
 def simulate_wind_effect(cassegrain_geo, test_points, wind_profile, layers, time_step=0.001, primary_mirror_radius=5.35):
     total_miss_counter = 0
@@ -75,11 +84,10 @@ def simulate_wind_effect(cassegrain_geo, test_points, wind_profile, layers, time
     while True:
         remaining_particles = False
         
+        # Update the position of all particles based on wind speed
+        update_points_with_wind(test_points, time_step, wind_profile, layers, primary_mirror_radius)
+        
         for point in tqdm(test_points):
-            # Update the position of the particle based on the wind speed
-            wind_speed = get_layer_wind_speed(point.z, wind_profile, layers)
-            point.x += wind_speed * time_step
-
             # Check if the particle is still within the primary mirror's radius
             if np.sqrt(point.x**2 + point.y**2) <= primary_mirror_radius:
                 remaining_particles = True
@@ -97,7 +105,6 @@ def simulate_wind_effect(cassegrain_geo, test_points, wind_profile, layers, time
             break
 
     return rays, intersections, total_miss_counter, point_positions
-
 
 def trace_ray(telescope, point, max_iterations=10000):
     miss_counter = 0
