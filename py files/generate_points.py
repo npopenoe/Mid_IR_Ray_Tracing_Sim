@@ -20,7 +20,7 @@ class AtmosphericPoint:
                 f"emissivity={self.emissivity}, pressure={self.pressure}, "
                 f"wind={self.wind}, cn2={self.cn2})")
 
-def generate_points(atm_model, layers, num_molecules_per_layer, primary_mirror_radius=5.4745, scaling_factor=1e44):
+def generate_points(atm_model, layers, num_molecules_per_layer, primary_mirror_radius=5.4745, scaling_factor=1e43):
     points = []
     base_height = 17  # Start generating points 17 meters above the base which is above secondary mirror
 

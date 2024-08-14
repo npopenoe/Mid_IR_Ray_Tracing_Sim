@@ -85,7 +85,7 @@ total_atmospheric_density_values = atm_model.calculate_atmospheric_density(press
 
 # Function to plot the profile
 def plot_profile(layers, values, title, xlabel):
-    fig, ax = plt.subplots(figsize=(6, 8))
+    fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(values, layers, 'o', color='blue')
     ax.plot(values, layers, color='blue', linestyle='-')
     ax.set_yscale('log')
@@ -102,15 +102,16 @@ def plot_profile(layers, values, title, xlabel):
             ax.axhline(y=layers[0], color='limegreen', linestyle='dotted', label='Mauna Kea Summit')
         else:
             ax.axhline(y=layer, color='paleturquoise', linestyle='dotted')
-    
+            
+    plt.savefig('atmospheric_density_profile.svg', format='svg', transparent=True)
     plt.legend()
     plt.show()
 
 # Plot the profiles
 '''plot_profile(layers, absolute_humidity_values, 'Absolute Humidity Profile', 'log Density (kg/m^3)')
 plot_profile(layers, number_of_water_molecules, 'Number of Water Vapor Molecules Profile', 'Number of Molecules (molecules/m³)')
-plot_profile(layers, total_atmospheric_density_values, 'Atmospheric Density Profile', 'Density (kg/m^3)')
-'''
+plot_profile(layers, total_atmospheric_density_values, 'Atmospheric Density Profile', 'Density (kg/m^3)')'''
+
 
 # Function to calculate slopes within each layer
 def calculate_slope(values, layers):

@@ -5,6 +5,7 @@ from cassegrain_geo import CassegrainGeometry, Point, Hyperbolic, Parabolic
 from generate_points import generate_points, AtmosphericModel, layers, number_of_water_molecules, AtmosphericPoint
 import time
 from tqdm import tqdm
+from parallelize import parallelize
 
 def calculate_normal(point, mirror):
     if isinstance(mirror, Parabolic):
@@ -246,7 +247,7 @@ def visualize_rays(telescope, rays):
     ax.set_zlabel('Z')
     ax.view_init(elev=30, azim=60)
     ax.set_box_aspect([1, 1, 1])
-    plt.show()
+    #plt.show()
 
 def plot_intersection_points(intersections):
     # x, y coordinates of intersections
@@ -276,6 +277,7 @@ def plot_intersection_points(intersections):
     plt.ylabel('Y (pixels)')
     plt.title('Detector Image')
     plt.grid(False)
+    plt.savefig('Detector_image.svg', format='svg', transparent=True)
     plt.show()
 
 if __name__ == "__main__":
@@ -290,18 +292,33 @@ if __name__ == "__main__":
     # Use the generated atmospheric points for the test
     test_points = [AtmosphericPoint(p.x, p.y, p.z, p.temperature, p.humidity, p.emissivity, p.pressure, p.wind, p.cn2) for p in atmospheric_points]
 
+    
     total_miss_counter = 0
     rays = []
     intersections = []
+    '''
     for point in tqdm(test_points):
         result, miss_counter = trace_ray(cassegrain_geo, point)
         total_miss_counter += miss_counter
         if result is not None:
             rays.append(result)
             intersections.append(result[6])  # Append the intersection point
-
     visualize_rays(cassegrain_geo, rays)
+    '''
     
+    @parallelize(use_tqdm = True)
+    def compute_ray_trace(point):
+        result, miss_counter = trace_ray(cassegrain_geo, point)
+        return result, miss_counter
+    parallel_result = compute_ray_trace(test_points)
+
+    for result, miss_counter in parallel_result:
+        total_miss_counter += miss_counter
+        if result is not None:
+            rays.append(result)
+            intersections.append(result[6])
+    visualize_rays(cassegrain_geo, rays)
+
     # Print statistics
     num_rays_passed = len(rays)
     num_rays_emitted = total_miss_counter
