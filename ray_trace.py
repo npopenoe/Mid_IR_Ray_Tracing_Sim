@@ -5,6 +5,8 @@ from cassegrain_geo import CassegrainGeometry, Point, Hyperbolic, Parabolic
 from generate_points import generate_points, AtmosphericModel, layers, number_of_water_molecules, AtmosphericPoint
 import time
 from tqdm import tqdm
+from parallelize import parallelize
+from astropy.io import fits
 
 def calculate_normal(point, mirror):
     if isinstance(mirror, Parabolic):
@@ -108,7 +110,7 @@ def generate_near_parallel_direction(one_radian_deviation=0.01745):
         # Return the direction vector close to parallel
         return direction
 
-def trace_ray(telescope, point, max_iterations=10):
+def trace_ray(telescope, point, max_iterations=1000):
     miss_counter = 0
     iteration_counter = 0
 
@@ -163,7 +165,7 @@ def trace_ray(telescope, point, max_iterations=10):
     '''print(f'No valid ray found after {max_iterations} iterations')'''
     return None, miss_counter
 
-def plot_secondary_mirror(ax, telescope):
+'''def plot_secondary_mirror(ax, telescope):
     # defines the radius of the secondary mirror
     r_secondary = 0.7090145  # Actual radius of the secondary mirror
     x_secondary = np.linspace(-r_secondary, r_secondary, 100)
@@ -240,13 +242,13 @@ def visualize_rays(telescope, rays):
 
     ax.set_xlim([-6, 6])
     ax.set_ylim([-6, 6])
-    ax.set_zlim([-7, 1000])
+    ax.set_zlim([-7, 18])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.view_init(elev=30, azim=60)
     ax.set_box_aspect([1, 1, 1])
-    plt.show()
+    #plt.show()'''
 
 def plot_intersection_points(intersections):
     # x, y coordinates of intersections
@@ -269,16 +271,97 @@ def plot_intersection_points(intersections):
             image_array[i, j] += 1
 
     # Plot the image with pixel coordinates
-    plt.figure(figsize=(8, 8))
-    plt.imshow(image_array, cmap = 'hot', interpolation='nearest', extent=[0, 1024, 0, 1024])
+    plt.figure(figsize=(10, 10))
+    plt.imshow(image_array, cmap = 'inferno', interpolation='nearest', origin = 'lower', vmin = 0, vmax = 15)
     plt.colorbar(label='Counts')
     plt.xlabel('X (pixels)')
     plt.ylabel('Y (pixels)')
     plt.title('Detector Image')
-    plt.grid(False)
+    plt.savefig('Detector_image.svg', transparent=True)
     plt.show()
 
-if __name__ == "__main__":
+def save_to_fits(filename, intersections, rays):
+    # Create a primary HDU
+    primary_hdu = fits.PrimaryHDU()
+
+    # Convert intersections and rays data to arrays for FITS
+    intersection_array = np.array(intersections)
+    
+    # Define the data type for the ray array to match the structure
+    dtype = np.dtype([
+        ('atm_x', np.float64), ('atm_y', np.float64), ('atm_z', np.float64),
+        ('prim_x', np.float64), ('prim_y', np.float64), ('prim_z', np.float64),
+        ('sec_x', np.float64), ('sec_y', np.float64), ('sec_z', np.float64),
+        ('ref_sec_x', np.float64), ('ref_sec_y', np.float64), ('ref_sec_z', np.float64),
+        ('norm_prim_x', np.float64), ('norm_prim_y', np.float64), ('norm_prim_z', np.float64),
+        ('norm_sec_x', np.float64), ('norm_sec_y', np.float64), ('norm_sec_z', np.float64),
+        ('det_x', np.float64), ('det_y', np.float64), ('det_z', np.float64)
+    ])
+    
+    # Populate the ray array
+    ray_array = np.array([(
+        ray[0].x, ray[0].y, ray[0].z,  # Atmospheric Point
+        ray[1].x, ray[1].y, ray[1].z,  # Target Primary
+        ray[2].x, ray[2].y, ray[2].z,  # Target Secondary
+        ray[3][0], ray[3][1], ray[3][2],  # Reflected Secondary
+        ray[4][0], ray[4][1], ray[4][2],  # Normal Primary
+        ray[5][0], ray[5][1], ray[5][2],  # Normal Secondary
+        ray[6][0], ray[6][1], ray[6][2]   # Detector Intersection
+    ) for ray in rays], dtype=dtype)
+
+    # Create HDUs for intersections and rays
+    intersections_hdu = fits.ImageHDU(data=intersection_array, name='INTERSECTIONS')
+    rays_hdu = fits.BinTableHDU(data=ray_array, name='RAYS')
+
+    # Combine the HDUs into an HDUList
+    hdul = fits.HDUList([primary_hdu, intersections_hdu, rays_hdu])
+
+    # Write to a FITS file
+    hdul.writeto(filename, overwrite=True)
+
+def load_from_fits(filename):
+    # Load the data from a FITS file
+    hdul = fits.open(filename)
+
+    intersections = hdul['INTERSECTIONS'].data
+    rays_data = hdul['RAYS'].data
+
+    # Convert ray data back to the original format if necessary
+    rays = []
+    for row in rays_data:
+        atmospheric_point = Point(row['atm_x'], row['atm_y'], row['atm_z'])
+        primary_target = Point(row['prim_x'], row['prim_y'], row['prim_z'])
+        secondary_target = Point(row['sec_x'], row['sec_y'], row['sec_z'])
+        reflected_secondary = np.array([row['ref_sec_x'], row['ref_sec_y'], row['ref_sec_z']])
+        normal_primary = np.array([row['norm_prim_x'], row['norm_prim_y'], row['norm_prim_z']])
+        normal_secondary = np.array([row['norm_sec_x'], row['norm_sec_y'], row['norm_sec_z']])
+        detector_intersection = (row['det_x'], row['det_y'], row['det_z'])
+        
+        rays.append((
+            atmospheric_point, 
+            primary_target, 
+            secondary_target, 
+            reflected_secondary, 
+            normal_primary, 
+            normal_secondary, 
+            detector_intersection
+        ))
+
+    hdul.close()
+
+    return intersections, rays
+
+# Skip the ray tracing part if you only want to plot the existing data
+if __name__ == "__main__":    
+    # Load the data from the FITS file
+    loaded_intersections, loaded_rays = load_from_fits('ray_trace_results.fits')
+
+    # Plot the data with the inferno colormap
+    plot_intersection_points(loaded_intersections)
+
+
+
+'''if __name__ == "__main__":
     F = 149.583
     f1 = 17.489
     b = 2.5
@@ -290,26 +373,51 @@ if __name__ == "__main__":
     # Use the generated atmospheric points for the test
     test_points = [AtmosphericPoint(p.x, p.y, p.z, p.temperature, p.humidity, p.emissivity, p.pressure, p.wind, p.cn2) for p in atmospheric_points]
 
+    
     total_miss_counter = 0
     rays = []
     intersections = []
+    
     for point in tqdm(test_points):
         result, miss_counter = trace_ray(cassegrain_geo, point)
         total_miss_counter += miss_counter
         if result is not None:
             rays.append(result)
             intersections.append(result[6])  # Append the intersection point
-
     visualize_rays(cassegrain_geo, rays)
     
+    
+    @parallelize(use_tqdm = True)
+    def compute_ray_trace(point):
+        result, miss_counter = trace_ray(cassegrain_geo, point)
+        return result, miss_counter
+    parallel_result = compute_ray_trace(test_points)
+
+    for result, miss_counter in parallel_result:
+        total_miss_counter += miss_counter
+        if result is not None:
+            rays.append(result)
+            intersections.append(result[6])
+    #visualize_rays(cassegrain_geo, rays)
+
     # Print statistics
     num_rays_passed = len(rays)
     num_rays_emitted = total_miss_counter
     ratio_passed_to_emitted = num_rays_passed / num_rays_emitted if num_rays_emitted > 0 else 0
 
-    '''print(f'Number of rays that passed through detector: {num_rays_passed}')
+    print(f'Number of rays that passed through detector: {num_rays_passed}')
     print(f'Number of rays emitted: {num_rays_emitted}')
-    print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')'''
+    print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')
 
-    # Plot the intersection points
-    plot_intersection_points(intersections)
+    # Save the data to a FITS file after simulation
+    save_to_fits('ray_trace_results.fits', intersections, rays)
+
+    # Load the data later
+    loaded_intersections, loaded_rays = load_from_fits('ray_trace_results.fits')
+
+    # Use the loaded data for plotting or further analysis
+    plot_intersection_points(loaded_intersections)
+'''
+
+    
+
