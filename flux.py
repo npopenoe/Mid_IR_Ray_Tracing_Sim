@@ -11,12 +11,12 @@ def planck_law(wavelength, T):
     return numerator / denominator  
 
 # mid ir (4000nm - 5000nm)
-lambda_min = 4000e-9
-lambda_max = 5000e-9
+lambda_min = 4549e-9
+lambda_max = 4790e-9
 
 T = 280
 
-# Perform the integration
+# perform the integration
 energy, error = quad(planck_law, lambda_min, lambda_max, args=(T,))
-print(f"Total energy emitted over 4000-5000nm: {energy} W·m^-2·sr^-1")
+print(f"Total energy emitted over 4000-5000nm: {energy} W·m^-2·sr^-1") # = energy emitted per unit area per unit solid angle per unit time within that wavelength range
 
