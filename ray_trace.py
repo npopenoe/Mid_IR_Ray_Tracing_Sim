@@ -110,7 +110,7 @@ def generate_near_parallel_direction(one_radian_deviation=0.01745):
         # Return the direction vector close to parallel
         return direction
 
-def trace_ray(telescope, point, max_iterations=1000):
+def trace_ray(telescope, point, max_iterations=10000):
     miss_counter = 0
     iteration_counter = 0
 
@@ -165,7 +165,7 @@ def trace_ray(telescope, point, max_iterations=1000):
     '''print(f'No valid ray found after {max_iterations} iterations')'''
     return None, miss_counter
 
-'''def plot_secondary_mirror(ax, telescope):
+def plot_secondary_mirror(ax, telescope):
     # defines the radius of the secondary mirror
     r_secondary = 0.7090145  # Actual radius of the secondary mirror
     x_secondary = np.linspace(-r_secondary, r_secondary, 100)
@@ -262,6 +262,8 @@ def plot_intersection_points(intersections):
     pixel_size_x = detector_width / 1024
     pixel_size_y = detector_height / 1024
 
+    total_intersections = 0  # Initialize a counter for intersections
+
     for x, y in zip(x_coords, y_coords):
         # Calculate the pixel indices, shifted to 0 to 1024 range
         i = int((x + detector_width / 2) / pixel_size_x)
@@ -269,16 +271,19 @@ def plot_intersection_points(intersections):
 
         if 0 <= i < 1024 and 0 <= j < 1024:
             image_array[i, j] += 1
+            total_intersections += 1  # Increment the counter when an intersection is recorded
 
     # Plot the image with pixel coordinates
     plt.figure(figsize=(10, 10))
-    plt.imshow(image_array, cmap = 'inferno', interpolation='nearest', origin = 'lower', vmin = 0, vmax = 15)
+    plt.imshow(image_array, cmap='inferno', interpolation='nearest', origin='lower', vmin=0, vmax=15)
     plt.colorbar(label='Counts')
     plt.xlabel('X (pixels)')
     plt.ylabel('Y (pixels)')
     plt.title('Detector Image')
     plt.savefig('Detector_image.svg', transparent=True)
     plt.show()
+
+    return total_intersections  # Return the total count of intersections
 
 def save_to_fits(filename, intersections, rays):
     # Create a primary HDU
@@ -351,17 +356,16 @@ def load_from_fits(filename):
 
     return intersections, rays
 
-# Skip the ray tracing part if you only want to plot the existing data
+'''# Skip the ray tracing part if only want to plot the existing data
 if __name__ == "__main__":    
     # Load the data from the FITS file
     loaded_intersections, loaded_rays = load_from_fits('ray_trace_results.fits')
-
-    # Plot the data with the inferno colormap
-    plot_intersection_points(loaded_intersections)
+    plot_intersection_points(loaded_intersections)'''
 
 
 
-'''if __name__ == "__main__":
+
+if __name__ == "__main__":
     F = 149.583
     f1 = 17.489
     b = 2.5
@@ -409,15 +413,5 @@ if __name__ == "__main__":
     print(f'Number of rays emitted: {num_rays_emitted}')
     print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')
 
-    # Save the data to a FITS file after simulation
-    save_to_fits('ray_trace_results.fits', intersections, rays)
-
-    # Load the data later
     loaded_intersections, loaded_rays = load_from_fits('ray_trace_results.fits')
-
-    # Use the loaded data for plotting or further analysis
     plot_intersection_points(loaded_intersections)
-'''
-
-    
-

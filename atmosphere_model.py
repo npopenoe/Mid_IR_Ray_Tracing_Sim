@@ -4,9 +4,8 @@ import matplotlib.pyplot as plt
 class AtmosphericModel:
     def __init__(self):
         self.k_B = 1.38e-23  # Boltzmann constant in J/K
-        self.R = 8.314  # Universal gas constant in J/(mol·K)
-        self.M_air = 0.029  # Molar mass of Earth's air in kg/mol
-        self.M_water = 0.018  # Molar mass of water vapor in kg/mol
+        self.M_air = 4.8e-26  #  mass of Earth's air in kg
+        self.M_water = 3e-27  # mass of water vapor in kg
         self.N_A = 6.022e23  # Avogadro's number in molecules/mol
 
     def temperature_profile(self, z):
@@ -29,7 +28,7 @@ class AtmosphericModel:
         P_0 = P_0 * 100  # Convert to Pa
         g = 9.81  # Gravity in m/s²
         T_m = self.temperature_profile(z) + 273.15  # Convert to Kelvin
-        return P_0 * np.exp(-self.M_air * g * (z) / (self.R * T_m))
+        return P_0 * np.exp(-self.M_air * g * (z) / (self.k_B * T_m))
 
     def wind_profile(self, z):
         W_0 = 16  # Base wind speed at 4200 m in m/s
@@ -46,15 +45,17 @@ class AtmosphericModel:
         return 0.61121 * np.exp((18.678 - T / 234.5) * (T / (257.14 + T)))
 
     def calculate_air_density(self, P, T):
-        return P * self.M_air / (self.R * T)  # Correct units with universal gas constant
+        return P * self.M_air / (self.k_B * T)  # Correct units with universal gas constant
 
     def calculate_absolute_humidity(self, temperature_values_C, humidity_values, temperature_values_K):
-        saturation_vapor_pressure_values = self.saturation_vapor_pressure(temperature_values_C)
-        absolute_humidity_values = (humidity_values / 100) * saturation_vapor_pressure_values * self.M_water / (self.k_B * temperature_values_K)
+        saturation_vapor_pressure_values = 0.61121 * np.exp((18.678 - temperature_values_C / 234.5) * (temperature_values_C / (257.14 + temperature_values_C)))
+        absolute_humidity_values = (humidity_values / 100) * saturation_vapor_pressure_values / (self.k_B * temperature_values_K)
         return absolute_humidity_values
 
     def calculate_water_vapor_molecules(self, absolute_humidity_values):
-        number_of_water_molecules = (absolute_humidity_values * self.N_A) / self.M_water
+        r = 5.4745 #m
+        h = 3160 #m
+        number_of_water_molecules = (absolute_humidity_values * np.pi * r**2 * h) / self.M_water
         return number_of_water_molecules
 
     def calculate_atmospheric_density(self, pressure_values, temperature_values_K, absolute_humidity_values):
