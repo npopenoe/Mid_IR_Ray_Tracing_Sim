@@ -86,9 +86,9 @@ total_atmospheric_density_values = atm_model.calculate_atmospheric_density(press
 
 # Function to plot the profile
 def plot_profile(layers, values, title, xlabel):
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(values, layers, 'o', color='blue')
-    ax.plot(values, layers, color='blue', linestyle='-')
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(values, layers, 'o', color='royalblue')
+    ax.plot(values, layers, color='royalblue', linestyle='-')
     ax.set_yscale('log')
     ax.set_xscale('log')
     ax.set_ylabel('log Altitude (m)')  # Altitude in meters
@@ -99,19 +99,20 @@ def plot_profile(layers, values, title, xlabel):
     # Add layer boundaries as dotted lines
     for i, layer in enumerate(layers):
         if i == 4:  # 5th from the bottom (index 4 in a 0-indexed array)
-            ax.axhline(y=layer, color='pink', linestyle='dotted', label='Top of Troposphere')
-            ax.axhline(y=layers[0], color='limegreen', linestyle='dotted', label='Mauna Kea Summit')
+            ax.axhline(y=layer, color='hotpink', linestyle='solid', linewidth = 1, label='Top of Troposphere')
+            ax.axhline(y=layers[0], color='lightseagreen', linestyle='solid', linewidth = 1, label='Mauna Kea Summit')
         else:
-            ax.axhline(y=layer, color='paleturquoise', linestyle='dotted')
+            None
+            #ax.axhline(y=layer, color='paleturquoise', linestyle='dotted')
             
     plt.savefig('atmospheric_density_profile.svg', format='svg', transparent=True)
     plt.legend()
     plt.show()
 
 # Plot the profiles
-'''plot_profile(layers, absolute_humidity_values, 'Absolute Humidity Profile', 'log Density (kg/m^3)')
-plot_profile(layers, number_of_water_molecules, 'Number of Water Vapor Molecules Profile', 'Number of Molecules (molecules/m³)')
-plot_profile(layers, total_atmospheric_density_values, 'Atmospheric Density Profile', 'Density (kg/m^3)')'''
+#plot_profile(layers, absolute_humidity_values, 'Absolute Humidity Profile', 'log Density (kg/m^3)')
+#plot_profile(layers, number_of_water_molecules, 'Number of Water Vapor Molecules Profile', 'Number of Molecules (molecules/m³)')
+plot_profile(layers, total_atmospheric_density_values, 'Atmospheric Particle Density Profile', 'log Particle Number Density (kg/m^3)')
 
 
 # Function to calculate slopes within each layer

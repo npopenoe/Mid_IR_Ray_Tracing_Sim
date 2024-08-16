@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from cassegrain_geo import Point
+from tqdm import tqdm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def plot_intersection_points(intersections):
     # x, y coordinates of intersections
@@ -23,15 +25,49 @@ def plot_intersection_points(intersections):
         if 0 <= i < 1024 and 0 <= j < 1024:
             image_array[i, j] += 1
 
-    # Plot the image with pixel coordinates
-    plt.figure(figsize=(10, 10))
-    plt.imshow(image_array, cmap='inferno', interpolation='nearest', origin='lower', vmin=0, vmax=10)
-    plt.colorbar(label='Counts')
-    plt.xlabel('X (pixels)')
-    plt.ylabel('Y (pixels)')
-    plt.title('Detector Image')
-    plt.savefig('Detector_image_new.svg', transparent=True)
+    # Create a figure and axis
+    fig, ax = plt.subplots(figsize=(10, 10))
+    im = ax.imshow(image_array, cmap='inferno', interpolation='nearest', origin='lower', vmin=0, vmax=10)
+
+    # Use make_axes_locatable to create a new axis for the colorbar
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="2%", pad=0.05)  # Adjust size and padding as needed
+
+    # Create the colorbar
+    cbar = plt.colorbar(im, cax=cax)
+    cbar.set_label('Counts')
+    ax.set_xlabel('X (pixels)')
+    ax.set_ylabel('Y (pixels)')
+    ax.set_title('Detector Image')
+    
+    plt.savefig('Detector_image_with_colorbar.svg', transparent=True)
     plt.show()
+
+    # Create a 1D density profile (summing along the y-axis to get the x-axis profile)
+    density_profile_x = np.sum(image_array, axis=0)
+
+    # Plot the 1D density profile
+    plt.figure(figsize=(10, 4))
+    plt.plot(density_profile_x, color='mediumpurple')
+    plt.xlabel('X (pixels)')
+    plt.ylabel('Photon Counts')
+    plt.title('1D Density Profile (X-Axis)')
+    plt.grid(True)
+    plt.savefig('Density_profile_x.svg', transparent=True)
+    plt.show()
+
+    '''# Optionally, you can create the y-axis profile as well:
+    density_profile_y = np.sum(image_array, axis=1)
+
+    # Plot the 1D density profile for the y-axis
+    plt.figure(figsize=(10, 5))
+    plt.plot(density_profile_y, color='orange')
+    plt.xlabel('Y (pixels)')
+    plt.ylabel('Photon Counts')
+    plt.title('1D Density Profile (Y-Axis)')
+    plt.grid(True)
+    plt.savefig('Density_profile_y.svg', transparent=True)
+    plt.show()'''
 
 def load_from_fits(filename):
     # Load the data from a FITS file
@@ -42,7 +78,7 @@ def load_from_fits(filename):
 
     # Convert ray data back to the original format if necessary
     rays = []
-    for row in rays_data:
+    for row in tqdm(rays_data):
         atmospheric_point = Point(row['atm_x'], row['atm_y'], row['atm_z'])
         primary_target = Point(row['prim_x'], row['prim_y'], row['prim_z'])
         secondary_target = Point(row['sec_x'], row['sec_y'], row['sec_z'])
@@ -74,10 +110,10 @@ if __name__ == "__main__":
     plot_intersection_points(loaded_intersections)
 
     # Print statistics
-    num_rays_passed = len(loaded_rays)
-    num_rays_emitted = len(loaded_rays)  # Assuming `total_miss_counter` would be stored or recalculated based on rays
+    '''num_rays_passed = len(loaded_rays)
+    num_rays_emitted = total_miss_counter  # Assuming `total_miss_counter` would be stored or recalculated based on rays
     ratio_passed_to_emitted = num_rays_passed / num_rays_emitted if num_rays_emitted > 0 else 0
 
     print(f'Number of rays that passed through detector: {num_rays_passed}')
     print(f'Number of rays emitted: {num_rays_emitted}')
-    print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')
+    print(f'Ratio of number of rays passed through to number of rays emitted: {ratio_passed_to_emitted:.10f}')'''
