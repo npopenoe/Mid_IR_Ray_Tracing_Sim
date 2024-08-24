@@ -35,11 +35,18 @@ def plot_intersection_points(intersections):
 
     # Create the colorbar
     cbar = plt.colorbar(im, cax=cax)
-    cbar.set_label('Counts')
-    ax.set_xlabel('X (pixels)')
-    ax.set_ylabel('Y (pixels)')
-    ax.set_title('Detector Image')
-    
+    cbar.set_label('Counts', fontsize=18)  # Increase colorbar label font size
+    ax.set_xlabel('X (pixels)', fontsize=16)  # Increase x-axis label font size
+    ax.set_ylabel('Y (pixels)', fontsize=16)  # Increase y-axis label font size
+    ax.set_title('Detector Image', fontsize=20)  # Increase title font size
+
+    '''# Position y-axis label on the right-hand side
+    ax.yaxis.set_label_position('right')
+    ax.yaxis.tick_right()'''
+
+    # Increase tick label font size
+    ax.tick_params(axis='both', which='major', labelsize=12)
+
     plt.savefig('Detector_image_with_colorbar.svg', transparent=True)
     plt.show()
 
@@ -49,25 +56,19 @@ def plot_intersection_points(intersections):
     # Plot the 1D density profile
     plt.figure(figsize=(10, 4))
     plt.plot(density_profile_x, color='mediumpurple')
-    plt.xlabel('X (pixels)')
-    plt.ylabel('Photon Counts')
-    plt.title('1D Density Profile (X-Axis)')
+    plt.xlabel('X (pixels)', fontsize=16)  # Increase x-axis label font size
+    plt.ylabel('Photon Counts', fontsize=18)  # Increase y-axis label font size
+    plt.gca().yaxis.set_label_position('right')  # Position y-axis label on the right-hand side
+    plt.gca().yaxis.tick_right()  # Position y-axis ticks on the right-hand side
+    plt.title('1D Density Profile (X-Axis)', fontsize=20)  # Increase title font size
     plt.grid(True)
+
+    # Increase tick label font size
+    plt.tick_params(axis='both', which='major', labelsize=16)
+
     plt.savefig('Density_profile_x.svg', transparent=True)
     plt.show()
 
-    '''# Optionally, you can create the y-axis profile as well:
-    density_profile_y = np.sum(image_array, axis=1)
-
-    # Plot the 1D density profile for the y-axis
-    plt.figure(figsize=(10, 5))
-    plt.plot(density_profile_y, color='orange')
-    plt.xlabel('Y (pixels)')
-    plt.ylabel('Photon Counts')
-    plt.title('1D Density Profile (Y-Axis)')
-    plt.grid(True)
-    plt.savefig('Density_profile_y.svg', transparent=True)
-    plt.show()'''
 
 def load_from_fits(filename):
     # Load the data from a FITS file
