@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import quad
-from atmosphere_model import AtmosphericModel, layers, number_of_water_molecules, total_atmospheric_density_values
+from atmosphere_model import AtmosphericModel, layers, total_atmospheric_density_values
 from ray_trace import plot_intersection_points
 from generate_points import generate_points, AtmosphericModel
 
@@ -15,8 +15,8 @@ def planck_law(wavelength, T):
     return numerator / denominator  # W·m^-2·sr^-1·m^-1
 
 # Wavelength range in meters (for mid-IR)
-lambda_min = 4.549e-6  # meters
-lambda_max = 4.790e-6  # meters
+lambda_min = 4549e-9  # meters
+lambda_max = 4790e-9  # meters
 T = 280  # Temperature in Kelvin
 
 # Perform the integration over the specified wavelength range
@@ -28,14 +28,14 @@ atm_model = AtmosphericModel()
 scaling_factor = 2e46  # Adjust this factor as needed
 
 # Calculate total number of particles across all layers
-print(f"number_of_water_molecules:{np.sum(number_of_water_molecules)}")
+print(f"number_of_water_molecules:{1211758}")
 
 # SA of a water molecule (assuming radius = 1 Å)
-molecule_SA = (4) * np.pi * (1.375e-10)**2  # m^2
+molecule_SA = (4) * np.pi * (2.375e-7)**2  # m^2
 print(f"molecule_SA: {molecule_SA}")
 
 # Calculate effective area subtended by water vapor molecules
-effective_area = np.sum(number_of_water_molecules) * molecule_SA  # Total effective area in m^2
+effective_area = 1211758 * molecule_SA  # Total effective area in m^2
 print(f"effective area: {effective_area}")
 
 # Plot intersections and get total number
@@ -56,7 +56,7 @@ print(f"Energy per ray: {energy_per_ray} J")
 energy_received_by_detector = energy_per_ray * total_intersections
 print(f"Energy received by detector: {energy_received_by_detector} J/s")
 
-avg_lambda = 4.6695e-6
+avg_lambda = 46695e-9
 # energy per photon calculation
 energy_per_photon = h * c / avg_lambda
 print(f"Energy per photon: {energy_per_photon} J")

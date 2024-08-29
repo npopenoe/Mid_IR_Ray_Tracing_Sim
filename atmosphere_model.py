@@ -116,7 +116,7 @@ def plot_profile(layers, values, title, xlabel):
 # Plot the profiles
 # plot_profile(layers, absolute_humidity_values, 'Absolute Humidity Profile', 'log Density (kg/m^3)')
 # plot_profile(layers, number_of_water_molecules, 'Number of Water Vapor Molecules Profile', 'Number of Molecules (molecules/m³)')
-plot_profile(layers, total_atmospheric_density_values, 'Atmospheric Particle Density Profile', 'log Particle Number Density (kg/m^3)')
+#plot_profile(layers, total_atmospheric_density_values, 'Atmospheric Particle Density Profile', 'log Particle Number Density (kg/m^3)')
 
 
 
