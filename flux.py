@@ -5,7 +5,7 @@ from generate_points import AtmosphericModel
 
 # constants
 h = 6.626e-34       # Planck's constant (J·s)
-c = 3.0e8           # Speed of light (m/s)
+c = 3e8             # Speed of light (m/s)
 k_B = 1.381e-23     # Boltzmann's constant (J/K)
 s = 2.375e-7        # meters
 lambda_min = 4549e-9  # meters
@@ -25,9 +25,9 @@ def planck_law(wavelength, T):
 
 spectral_radiance, error = quad(planck_law, lambda_min, lambda_max, args=(T,)) # integration over the specified wavelength range
 atm_model = AtmosphericModel() # initializes the atmospheric model and generates points
-molecule_SA = 4 * np.pi * s**2  # m^2 -- # SA of a water molecule 4pis^2
-effective_area = number_molec * molecule_SA  # number of molecules in atm multiply by surface area
-ratio_rays_etod = total_intersections/rays_emitted # equals 0.005 
+molecule_SA = 4 * np.pi * s**2  
+effective_area = number_molec * molecule_SA  
+ratio_rays_etod = total_intersections/rays_emitted # checking equals 0.005 
 total_energy = spectral_radiance * effective_area * 1/4*np.pi # in Watts
 energy_per_ray = total_energy / rays_emitted
 energy_received_by_detector = energy_per_ray * total_intersections
@@ -41,10 +41,10 @@ photons_detected_per_second_per_pixel = (energy_detected / energy_per_photon ) /
 # all the print statements 
 
 print(f"Spectral radiance over {lambda_min*1e9:.0f}-{lambda_max*1e9:.0f}nm: {spectral_radiance} W·m^-2·sr^-1")
-print(f"number_of_water_molecules: {1211758}")
-print(f"molecule_SA: {molecule_SA}")
+print(f"number of water molecules: {number_molec}")
+print(f"molecule SA: {molecule_SA}")
 print(f"effective area: {effective_area}")
-print(f"ratio_rays_emit_to_detect: {ratio_rays_etod}")
+print(f"ratio rays emit to detect: {ratio_rays_etod}")
 print(f"Total energy emitted over {lambda_min*1e9:.0f}-{lambda_max*1e9:.0f}nm: {total_energy} W")
 print(f"Energy per ray: {energy_per_ray} J")
 print(f"Energy received by detector: {energy_received_by_detector} J/s")
