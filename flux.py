@@ -1,8 +1,7 @@
 import numpy as np
 from scipy.integrate import quad
-from atmosphere_model import AtmosphericModel, layers, total_atmospheric_density_values
-from ray_trace import plot_intersection_points
-from generate_points import generate_points, AtmosphericModel
+from atmosphere_model import AtmosphericModel
+from generate_points import AtmosphericModel
 
 # constants
 h = 6.626e-34       # Planck's constant (J·s)
@@ -11,7 +10,7 @@ k_B = 1.381e-23     # Boltzmann's constant (J/K)
 s = 2.375e-7        # meters
 lambda_min = 4549e-9  # meters
 lambda_max = 4790e-9  # meters
-avg_lambda = 46695e-9 # meters
+avg_lambda = 4695e-9 # meters
 T = 280 # in Kelvin
 rays_emitted = 56492000 # got these nums from running the ray_trace for 1211758 molecules and just copied in
 total_intersections = 294000
@@ -42,7 +41,7 @@ photons_detected_per_second_per_pixel = (energy_detected / energy_per_photon ) /
 # all the print statements 
 
 print(f"Spectral radiance over {lambda_min*1e9:.0f}-{lambda_max*1e9:.0f}nm: {spectral_radiance} W·m^-2·sr^-1")
-print(f"number_of_water_molecules:{1211758}")
+print(f"number_of_water_molecules: {1211758}")
 print(f"molecule_SA: {molecule_SA}")
 print(f"effective area: {effective_area}")
 print(f"ratio_rays_emit_to_detect: {ratio_rays_etod}")
