@@ -27,17 +27,12 @@ def plot_intersection_points(intersections):
 
     # Multiply the entire array by the energy per photon * photons per ray
     photons_per_ray = 60569.77121680134
-    energy_per_photon = 4.233865814696486e-20  # in J
-
-    # Calculate the energy per ray in joules
-    energy_per_ray = photons_per_ray * energy_per_photon
-    energy_per_ray
-
-    image_array *= energy_per_ray
+    image_array *= photons_per_ray
+    print("mean of image array:", np.mean(image_array))
 
     # Create a figure and axis
     fig, ax = plt.subplots(figsize=(10, 10))
-    im = ax.imshow(image_array, cmap='inferno', interpolation='nearest', origin='lower', vmin = 0, vmax = 0.25e-13)
+    im = ax.imshow(image_array, cmap='inferno', interpolation='nearest', origin='lower', vmax = 0.65e6)
 
     # Use make_axes_locatable to create a new axis for the colorbar
     divider = make_axes_locatable(ax)
@@ -45,7 +40,7 @@ def plot_intersection_points(intersections):
 
     # Create the colorbar
     cbar = plt.colorbar(im, cax=cax)
-    cbar.set_label('Energy (Joules)', fontsize=18)  # Update colorbar label to Joules
+    cbar.set_label('Photoelectrons', fontsize=18)  # Update colorbar label to Joules
     ax.set_xlabel('X (pixels)', fontsize=16)  # Increase x-axis label font size
     ax.set_ylabel('Y (pixels)', fontsize=16)  # Increase y-axis label font size
     ax.set_title('Detector Image', fontsize=20)  # Increase title font size
@@ -63,7 +58,7 @@ def plot_intersection_points(intersections):
     plt.figure(figsize=(14, 4))
     plt.plot(density_profile_x, color='mediumpurple')
     plt.xlabel('X (pixels)', fontsize=16)  # Increase x-axis label font size
-    plt.ylabel('Energy (Joules)', fontsize=18)  # Update y-axis label to Joules
+    plt.ylabel('Photoelectrons)', fontsize=18)  # Update y-axis label to Joules
     plt.gca().yaxis.set_label_position('right')  # Position y-axis label on the right-hand side
     plt.gca().yaxis.tick_right()  # Position y-axis ticks on the right-hand side
     plt.title('1D Density Profile (X-Axis)', fontsize=20)  # Increase title font size
